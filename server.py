@@ -71,6 +71,23 @@ class ReaderHandler(SimpleHTTPRequestHandler):
         self.path = parsed.path or "/"
         return super().do_GET()
 
+    def do_DELETE(self):
+        parsed = urlparse(self.path)
+        if not parsed.path.startswith("/uploads/"):
+            self.send_error(404, "Not Found")
+            return
+
+        target = UPLOAD_DIR / Path(parsed.path).name
+        if not target.exists():
+            self.respond_json({"error": "Файл не найден"}, status=404)
+            return
+
+        try:
+            target.unlink()
+            self.respond_json({"status": "deleted"})
+        except OSError:
+            self.respond_json({"error": "Не удалось удалить файл"}, status=500)
+
     def server_origin(self):
         host = self.headers.get("Host") or f"0.0.0.0:{DEFAULT_PORT}"
         scheme = "https" if self.server.server_address[1] == 443 else "http"

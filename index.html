@@ -38,7 +38,12 @@
     </header>
 
     <main>
-      <section class="panel drop-panel" id="drop-panel">
+      <div class="tabs">
+        <button class="tab active" data-tab="upload">Загрузка</button>
+        <button class="tab" data-tab="history">Загруженные отчёты</button>
+      </div>
+
+      <section class="panel drop-panel tab-content active" id="drop-panel" data-tab="upload">
         <div class="drop-zone" id="drop-zone">
           <div class="drop-icon" aria-hidden="true">📄</div>
           <div>
@@ -60,6 +65,13 @@
         </div>
         <div id="load-status" class="muted status"></div>
         <div class="error" id="error"></div>
+      </section>
+
+      <section class="panel tab-content" id="history-panel" data-tab="history">
+        <div class="history-actions">
+          <button class="button ghost" id="refresh-history">Обновить список</button>
+        </div>
+        <div id="history-list" class="history-list"></div>
       </section>
 
       <section class="panel summary" id="summary-panel">

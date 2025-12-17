@@ -29,6 +29,10 @@ const sarifSampleBtn = document.getElementById("load-sarif-sample");
 const uploadServerBtn = document.getElementById("upload-server-btn");
 const shareStatus = document.getElementById("share-status");
 const shareLink = document.getElementById("share-link");
+const tabs = document.querySelectorAll(".tab");
+const tabContents = document.querySelectorAll(".tab-content");
+const historyList = document.getElementById("history-list");
+const refreshHistoryBtn = document.getElementById("refresh-history");
 
 function setStatus(message) {
   statusBox.textContent = message || "";
@@ -49,6 +53,11 @@ function setShareStatus(message, link) {
     shareLink.removeAttribute("href");
     shareLink.style.display = "none";
   }
+}
+
+function switchTab(target) {
+  tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === target));
+  tabContents.forEach((panel) => panel.classList.toggle("active", panel.dataset.tab === target));
 }
 
 function normalizeSeverity(raw = "info") {
@@ -205,9 +214,72 @@ async function uploadToServer() {
       shareUrl
     )}`;
     setShareStatus("Ссылка готова. Отправьте разработчикам:", linkWithParam);
+    await loadHistory();
   } catch (err) {
     setShareStatus(err.message || "Ошибка при загрузке");
   }
+}
+
+async function loadHistory() {
+  try {
+    const response = await fetch("/reports");
+    if (!response.ok) throw new Error("Не удалось получить список отчётов");
+    const data = await response.json();
+    renderHistory(data.files || []);
+  } catch (err) {
+    historyList.innerHTML = `<p class="error">${err.message}</p>`;
+  }
+}
+
+function renderHistory(files) {
+  historyList.innerHTML = "";
+  if (!files.length) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "Загруженных отчётов пока нет";
+    historyList.appendChild(empty);
+    return;
+  }
+
+  files.forEach((file) => {
+    const item = document.createElement("div");
+    item.className = "history-item";
+
+    const info = document.createElement("div");
+    const name = document.createElement("div");
+    name.textContent = file.name;
+    const date = document.createElement("p");
+    date.className = "muted";
+    const dt = new Date(file.created * 1000);
+    date.textContent = dt.toLocaleString();
+    info.append(name, date);
+
+    const openBtn = document.createElement("button");
+    openBtn.className = "button ghost";
+    openBtn.textContent = "Открыть";
+    openBtn.addEventListener("click", () => {
+      const link = `${window.location.origin}${window.location.pathname}?report=${encodeURIComponent(
+        file.url
+      )}`;
+      window.location.href = link;
+    });
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "button";
+    deleteBtn.textContent = "Удалить";
+    deleteBtn.addEventListener("click", async () => {
+      if (!confirm("Удалить отчёт?")) return;
+      const response = await fetch(file.url, { method: "DELETE" });
+      if (!response.ok) {
+        alert("Не удалось удалить отчёт");
+        return;
+      }
+      await loadHistory();
+    });
+
+    item.append(info, openBtn, deleteBtn);
+    historyList.appendChild(item);
+  });
 }
 
 function buildSeverityFilters() {
@@ -461,6 +533,15 @@ function init() {
   setupFileInput();
   setupSearch();
   uploadServerBtn.addEventListener("click", uploadToServer);
+  tabs.forEach((tab) =>
+    tab.addEventListener("click", () => {
+      switchTab(tab.dataset.tab);
+      if (tab.dataset.tab === "history") {
+        loadHistory();
+      }
+    })
+  );
+  refreshHistoryBtn.addEventListener("click", loadHistory);
   setShareStatus("", "");
   renderSummary();
   renderSeverityBar();
