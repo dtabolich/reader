@@ -128,24 +128,6 @@ h2 {
   margin: 10px 20px 2px;
 }
 
-.share-controls {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 10px;
-}
-
-.share-link {
-  color: #7dd3fc;
-  word-break: break-all;
-  text-decoration: none;
-}
-
-.share-link:hover {
-  text-decoration: underline;
-}
-
 .hint {
   grid-column: 2;
   margin: 4px 0 0;
