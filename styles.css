@@ -439,34 +439,32 @@ h2 {
   .filters,
   .share-controls,
   .history-actions,
-  #issues-panel .issue-card,
-  #summary-panel,
-  #issues-panel {
-    box-shadow: none;
+  #load-status,
+  #error,
+  #history-panel {
+    display: none !important;
   }
 
-  .button,
-  .share-link,
-  #search,
-  .tabs,
-  .history-actions,
-  #load-status,
-  #error {
+  body.print-mode main > *:not(#summary-panel):not(#issues-panel) {
     display: none !important;
   }
 
   .panel {
     border: 1px solid #d1d5db;
     background: #fff;
+    box-shadow: none;
   }
 
-  .issue-card {
+  #issues-panel .issue-card {
     background: #fff;
     border-color: #e5e7eb;
+    box-shadow: none;
+    page-break-inside: avoid;
   }
 
   .severity-pill,
-  .chip {
+  .chip,
+  .slice span {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

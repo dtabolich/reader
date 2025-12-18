@@ -239,7 +239,14 @@ function downloadPdf() {
     alert("Сначала загрузите отчёт");
     return;
   }
-  window.print();
+  document.body.classList.add("print-mode");
+  const cleanup = () => {
+    document.body.classList.remove("print-mode");
+    window.removeEventListener("afterprint", cleanup);
+  };
+
+  window.addEventListener("afterprint", cleanup);
+  setTimeout(() => window.print(), 0);
 }
 
 function renderHistory(files) {
