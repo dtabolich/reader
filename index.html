@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Semgrep & SARIF Report Reader</title>
+    <title>SemgReport Viewer</title>
     <link
       rel="preconnect"
       href="https://fonts.googleapis.com"
@@ -22,7 +22,7 @@
   <body>
     <header class="site-header">
       <div>
-        <p class="eyebrow">Offline viewer</p>
+        <p class="eyebrow">SemgReport Viewer</p>
         <h1>Чтение отчётов Semgrep JSON и SARIF</h1>
         <p class="lede">
           Загрузите файл Semgrep (JSON) или любой SARIF отчёт, чтобы быстро
@@ -30,88 +30,90 @@
           распределение по уровням риска.
         </p>
         <div class="header-actions">
-          <button class="button" id="load-semgrep-sample">Показать Semgrep пример</button>
-          <button class="button ghost" id="load-sarif-sample">Показать SARIF пример</button>
         </div>
       </div>
-      <div class="badge">Работает полностью локально</div>
     </header>
 
     <main>
-      <div class="tabs">
-        <button class="tab active" data-tab="upload">Загрузка</button>
-        <button class="tab" data-tab="history">Загруженные отчёты</button>
-      </div>
-
-      <section class="panel drop-panel tab-content active" id="drop-panel" data-tab="upload">
-        <div class="drop-zone" id="drop-zone">
-          <div class="drop-icon" aria-hidden="true">📄</div>
-          <div>
-            <h2>Перетащите отчёт или выберите файл</h2>
-            <p class="muted">Поддерживаются .json и .sarif</p>
+      <section class="panel" id="history-panel">
+        <section class="panel summary" id="summary-panel">
+          <div class="filter-group" id="severity-filters"></div>
+          <div class="summary-grid">
+            <div class="card">
+              <p class="muted">Всего находок</p>
+              <p class="metric" id="total-findings">—</p>
+            </div>
+            <div class="card">
+              <p class="muted">Файлов</p>
+              <p class="metric" id="total-files">—</p>
+            </div>
+            <div class="card">
+              <p class="muted">Правил</p>
+              <p class="metric" id="total-rules">—</p>
+            </div>
+            <div class="card">
+              <p class="muted">Кол-во отчетов</p>
+              <p class="metric" id="report-type">—</p>
+            </div>
           </div>
-          <label class="button" for="file-input">Выбрать файл</label>
-          <input type="file" id="file-input" accept=".json,.sarif,.sarif.json" />
-          <p class="hint">
-            Файл не покидает ваш браузер — вся обработка происходит локально.
-          </p>
-          <div class="share-controls">
-            <button class="button ghost" id="upload-server-btn" disabled>
-              Сохранить отчёт на сервере
-            </button>
-            <button class="button" id="download-pdf" disabled>Скачать PDF</button>
-            <p class="muted" id="share-status"></p>
-            <a class="share-link" id="share-link" href="" target="_blank"></a>
+          <div class="severity-bar" id="severity-bar"></div>
+          <div class="search-row">
+            <div class="date-filter-group">
+              <label class="date-filter">
+                <span class="muted">Период</span>
+                <input type="date" id="date-from" />
+              </label>
+              <span class="muted">-</span>
+              <label class="date-filter">
+                <input type="date" id="date-to" />
+              </label>
+            </div>
+            <label class="search">
+              <span class="muted">Поиск</span>
+              <input
+                type="search"
+                id="search"
+                placeholder="Путь, правило, сообщение..."
+                autocomplete="off"
+              />
+            </label>
           </div>
-        </div>
-        <div id="load-status" class="muted status"></div>
-        <div class="error" id="error"></div>
-      </section>
-
-      <section class="panel tab-content" id="history-panel" data-tab="history">
+        </section>
         <div class="history-actions">
-          <button class="button ghost" id="refresh-history">Обновить список</button>
+          <button class="button ghost" id="upload-btn" title="Загрузка">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M8 14V6M8 6L5 9M8 6L11 9M3 6V3C3 2.44772 3.44772 2 4 2H12C12.5523 2 13 2.44772 13 3V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button class="button ghost" id="refresh-history" title="Обновить список">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M3 8C3 10.7614 5.23858 13 8 13C10.7614 13 13 10.7614 13 8C13 5.23858 10.7614 3 8 3M8 3V6M8 3L5 6M13 8C13 5.23858 10.7614 3 8 3M8 13V10M8 13L11 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </div>
         <div id="history-list" class="history-list"></div>
       </section>
 
-      <section class="panel summary" id="summary-panel">
-        <div class="summary-grid">
-          <div class="card">
-            <p class="muted">Всего находок</p>
-            <p class="metric" id="total-findings">—</p>
-          </div>
-          <div class="card">
-            <p class="muted">Файлов</p>
-            <p class="metric" id="total-files">—</p>
-          </div>
-          <div class="card">
-            <p class="muted">Правил</p>
-            <p class="metric" id="total-rules">—</p>
-          </div>
-          <div class="card">
-            <p class="muted">Тип отчёта</p>
-            <p class="metric" id="report-type">—</p>
-          </div>
+      <section class="panel tab-content" id="report-view" data-tab="report" style="display: none;">
+        <div class="report-view-header">
+          <button class="button ghost" id="back-btn" title="Назад к списку">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <h2 id="report-view-title">Отчёт</h2>
+          <button class="button ghost" id="report-download-btn" title="Скачать в PDF">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M8 2V10M8 10L5 7M8 10L11 7M3 10V13C3 13.5523 3.44772 14 4 14H12C12.5523 14 13 13.5523 13 13V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Скачать в PDF</span>
+          </button>
         </div>
-        <div class="severity-bar" id="severity-bar"></div>
-      </section>
-
-      <section class="panel filters">
-        <div class="filter-group" id="severity-filters"></div>
-        <label class="search">
-          <span class="muted">Поиск</span>
-          <input
-            type="search"
-            id="search"
-            placeholder="Путь, правило, сообщение..."
-            autocomplete="off"
-          />
-        </label>
-      </section>
-
-      <section class="panel" id="issues-panel">
-        <div id="issues"></div>
+        <div id="report-view-content">
+          <section class="panel" id="issues-panel">
+            <div id="issues"></div>
+          </section>
+        </div>
       </section>
     </main>
 

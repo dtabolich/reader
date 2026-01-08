@@ -1,5 +1,46 @@
-node_modules
-uploads
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Python
 __pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Development files
+*.log
 .env
-npm-debug.log
+.env.local
+
+# Database and uploads (will be created in container or via volumes)
+reports.db
+uploads/*
+!uploads/.gitkeep
+
+# Documentation and scripts
+README.md
+upload_mock_gitlab_data.py
+upload_mock_gitlab_data.sh
+
+# Docker
+docker-compose.yml
+.dockerignore

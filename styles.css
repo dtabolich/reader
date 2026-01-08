@@ -35,6 +35,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  margin-top: 32px;
 }
 
 .site-header {
@@ -96,56 +97,7 @@ h2 {
   box-shadow: var(--shadow);
 }
 
-.tabs {
-  display: inline-flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.tab {
-  border: 1px solid var(--border);
-  background: #0b1020;
-  color: var(--text);
-  border-radius: 10px;
-  padding: 10px 14px;
-  cursor: pointer;
-}
-
-.tab.active {
-  border-color: var(--accent);
-  background: rgba(56, 189, 248, 0.12);
-}
-
-.tab-content { display: none; }
-.tab-content.active { display: block; }
-
-.drop-panel {
-  padding: 0;
-}
-
-.drop-zone {
-  padding: 28px;
-  border: 1px dashed rgba(148, 163, 184, 0.4);
-  border-radius: 14px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 16px;
-  background: linear-gradient(120deg, rgba(56, 189, 248, 0.04), rgba(56, 189, 248, 0));
-}
-
-.drop-zone.dragging {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
-}
-
-.drop-zone input {
-  display: none;
-}
-
-.drop-icon {
-  font-size: 36px;
-}
+/* Tab and drop-zone styles removed - no longer needed */
 
 .status {
   margin: 10px 20px 2px;
@@ -175,9 +127,22 @@ h2 {
 }
 
 .history-actions {
+  margin-top: 20px;
   display: flex;
   justify-content: flex-end;
   margin-bottom: 12px;
+}
+
+.report-view-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.report-view-header h2 {
+  margin: 0;
+  flex: 1;
 }
 
 .history-list {
@@ -201,6 +166,92 @@ h2 {
 
 .history-item button {
   white-space: nowrap;
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0b1020;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pagination-info {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-numbers button.active {
+  background: rgba(56, 189, 248, 0.3);
+  border-color: var(--accent);
+}
+
+.page-numbers .muted {
+  padding: 0 4px;
+  color: var(--muted);
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.date-filter-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.date-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-filter span.muted {
+  font-size: 14px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.date-filter input[type="date"] {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0b1020;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.date-filter input[type="date"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.date-filter input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
 }
 
 .hint {
@@ -272,21 +323,23 @@ h2 {
 
 .filter-group {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
 .chip {
   border: 1px solid var(--border);
   background: #0b1020;
   color: var(--text);
-  padding: 8px 12px;
+  padding: 4px 8px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
+  font-size: 12px;
 }
 
 .chip.active {
@@ -295,16 +348,33 @@ h2 {
 }
 
 .chip .dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   display: inline-block;
 }
 
+.search-row {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .search {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.search span.muted {
+  margin: 0;
+  padding: 0;
 }
 
 .search input {
@@ -313,7 +383,8 @@ h2 {
   background: #0b1020;
   color: var(--text);
   padding: 10px 12px;
-  min-width: 260px;
+  flex: 1;
+  min-width: 0;
 }
 
 .issue-card {
@@ -382,7 +453,12 @@ h2 {
 .empty-state {
   text-align: center;
   color: var(--muted);
-  padding: 20px;
+  padding: 60px 20px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
 }
 
 .button {
@@ -406,6 +482,26 @@ h2 {
   color: var(--text);
 }
 
+.button svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.button:has(svg):not(:has(span)) {
+  padding: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button:has(svg):has(span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .muted {
   color: var(--muted);
   margin: 0;
@@ -416,10 +512,6 @@ h2 {
     padding: 18px;
   }
 
-  .drop-zone {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
 
   .hint {
     grid-column: 1;
@@ -434,8 +526,6 @@ h2 {
   }
 
   .site-header,
-  .tabs,
-  .drop-panel,
   .filters,
   .share-controls,
   .history-actions,

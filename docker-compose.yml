@@ -1,13 +1,27 @@
-version: "3.9"
 services:
   reader:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: semgreport-viewer:latest
+    container_name: semgreport-viewer
     ports:
-      - "8080:8000"
+      - "8083:8000"
     volumes:
       - uploads:/app/uploads
+      - db_data:/app
     environment:
       - PORT=8000
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/reports')"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
 volumes:
   uploads:
+    driver: local
+  db_data:
+    driver: local
