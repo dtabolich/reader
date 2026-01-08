@@ -167,11 +167,8 @@ async function loadHistory() {
     if (!response.ok) throw new Error("Не удалось получить список отчётов");
     const data = await response.json();
     state.allReports = data.files || [];
+    // filterHistory() will calculate and render totals from filtered reports
     filterHistory();
-    // Render aggregate totals if available
-    if (data.totals) {
-      renderHistoryTotals(data.totals);
-    }
   } catch (err) {
     historyList.innerHTML = `<p class="error">${err.message}</p>`;
   }
@@ -218,8 +215,24 @@ function filterHistory() {
       }
     }
     
+    // Filter by search query
+    const query = searchInput.value.trim().toLowerCase();
+    if (query) {
+      const searchableText = [
+        file.name,
+        file.git?.tag,
+        file.git?.branch,
+        file.git?.commit,
+      ].filter(Boolean).join(" ").toLowerCase();
+      if (!searchableText.includes(query)) return false;
+    }
+    
     return true;
   });
+  
+  // Calculate totals from filtered reports
+  const filteredTotals = calculateTotalsFromReports(filtered);
+  renderHistoryTotals(filteredTotals);
   
   renderHistory(filtered);
 }
@@ -569,14 +582,49 @@ function renderSummary() {
   document.getElementById("total-findings").textContent = total || "—";
   document.getElementById("total-files").textContent = files || "—";
   document.getElementById("total-rules").textContent = rules || "—";
-  document.getElementById("report-type").textContent = state.reportType || "—";
+  // Always show count of reports (1 when viewing a single report)
+  document.getElementById("report-type").textContent = "1";
+}
+
+function calculateTotalsFromReports(reports) {
+  let totalFindings = 0;
+  let totalFiles = 0;
+  let totalRules = 0;
+  const severityCounts = {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+    info: 0,
+  };
+  
+  reports.forEach((report) => {
+    totalFindings += report.total_findings || 0;
+    totalFiles += report.total_files || 0;
+    totalRules += report.total_rules || 0;
+    
+    const severity = report.severity || {};
+    severityCounts.critical += severity.critical || 0;
+    severityCounts.high += severity.high || 0;
+    severityCounts.medium += severity.medium || 0;
+    severityCounts.low += severity.low || 0;
+    severityCounts.info += severity.info || 0;
+  });
+  
+  return {
+    total_reports: reports.length,
+    total_findings: totalFindings,
+    total_files: totalFiles,
+    total_rules: totalRules,
+    severity: severityCounts,
+  };
 }
 
 function renderHistoryTotals(totals) {
   document.getElementById("total-findings").textContent = totals.total_findings || "—";
   document.getElementById("total-files").textContent = totals.total_files || "—";
   document.getElementById("total-rules").textContent = totals.total_rules || "—";
-  document.getElementById("report-type").textContent = totals.total_reports ? `${totals.total_reports} отчётов` : "—";
+  document.getElementById("report-type").textContent = totals.total_reports || "—";
   
   // Update severity bar with aggregate totals
   const severityCounts = {
@@ -730,7 +778,16 @@ function setupFileInput() {
 }
 
 function setupSearch() {
-  searchInput.addEventListener("input", () => applyFilters());
+  searchInput.addEventListener("input", () => {
+    // Check if we're in history view or report view
+    if (state.allReports && state.allReports.length > 0 && !state.issues.length) {
+      // We're in history view, filter the reports list
+      filterHistory();
+    } else {
+      // We're viewing a report, filter issues within the report
+      applyFilters();
+    }
+  });
 }
 
 function setupDateFilters() {
