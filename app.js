@@ -163,12 +163,51 @@ async function handleFile(file) {
 
 async function loadHistory() {
   try {
-    const response = await fetch("/reports");
+    // Build query parameters from current filter state
+    const params = new URLSearchParams();
+    
+    // Add severity filters
+    if (state.severityFilters.size > 0 && state.severityFilters.size < severityOrder.length) {
+      state.severityFilters.forEach(level => params.append("severity", level));
+    }
+    
+    // Add report type filters
+    if (state.reportTypeFilters.size > 0 && state.reportTypeFilters.size < 2) {
+      state.reportTypeFilters.forEach(type => params.append("report_type", type));
+    }
+    
+    // Add date filters
+    if (state.dateFrom) {
+      params.append("date_from", state.dateFrom);
+    }
+    if (state.dateTo) {
+      params.append("date_to", state.dateTo);
+    }
+    
+    // Add search query
+    const query = searchInput.value.trim();
+    if (query) {
+      params.append("search", query);
+    }
+    
+    const url = `/reports${params.toString() ? `?${params.toString()}` : ""}`;
+    // Add cache-busting to ensure fresh data
+    const separator = params.toString() ? "&" : "?";
+    const finalUrl = `${url}${separator}_t=${Date.now()}`;
+    const response = await fetch(finalUrl);
     if (!response.ok) throw new Error("Не удалось получить список отчётов");
     const data = await response.json();
+    
+    // Store all reports for reference, but render filtered results
     state.allReports = data.files || [];
-    // filterHistory() will calculate and render totals from filtered reports
-    filterHistory();
+    
+    // Render totals from server (already filtered)
+    if (data.totals) {
+      renderHistoryTotals(data.totals);
+    }
+    
+    // Render the filtered reports
+    renderHistory(state.allReports);
   } catch (err) {
     historyList.innerHTML = `<p class="error">${err.message}</p>`;
   }
@@ -178,63 +217,8 @@ function filterHistory() {
   // Reset to first page when filtering
   state.currentPage = 1;
   
-  const filtered = state.allReports.filter((file) => {
-    // Filter by report type
-    const reportType = file.report_type || "";
-    const matchesType = 
-      (reportType.includes("JSON") && state.reportTypeFilters.has("JSON")) ||
-      (reportType.includes("SARIF") && state.reportTypeFilters.has("SARIF"));
-    
-    if (!matchesType) return false;
-    
-    // Filter by severity - show report if it has at least one issue of selected severity
-    const severity = file.severity || {};
-    const hasSelectedSeverity = severityOrder.some((level) => {
-      if (!state.severityFilters.has(level)) return false;
-      const count = severity[level] || 0;
-      return count > 0;
-    });
-    
-    if (!hasSelectedSeverity) return false;
-    
-    // Filter by date range
-    if (state.dateFrom || state.dateTo) {
-      const reportDate = new Date(file.created * 1000);
-      reportDate.setHours(0, 0, 0, 0); // Reset time to start of day
-      
-      if (state.dateFrom) {
-        const fromDate = new Date(state.dateFrom);
-        fromDate.setHours(0, 0, 0, 0);
-        if (reportDate < fromDate) return false;
-      }
-      
-      if (state.dateTo) {
-        const toDate = new Date(state.dateTo);
-        toDate.setHours(23, 59, 59, 999); // End of day
-        if (reportDate > toDate) return false;
-      }
-    }
-    
-    // Filter by search query
-    const query = searchInput.value.trim().toLowerCase();
-    if (query) {
-      const searchableText = [
-        file.name,
-        file.git?.tag,
-        file.git?.branch,
-        file.git?.commit,
-      ].filter(Boolean).join(" ").toLowerCase();
-      if (!searchableText.includes(query)) return false;
-    }
-    
-    return true;
-  });
-  
-  // Calculate totals from filtered reports
-  const filteredTotals = calculateTotalsFromReports(filtered);
-  renderHistoryTotals(filteredTotals);
-  
-  renderHistory(filtered);
+  // Reload data from server with current filters
+  loadHistory();
 }
 
 function downloadPdf() {
@@ -504,9 +488,7 @@ function toggleReportType(type, chip) {
     chip.classList.add("active");
   }
   // Always filter history when toggling report type (only used in history view)
-  if (state.allReports && state.allReports.length > 0) {
-    filterHistory();
-  }
+  filterHistory();
 }
 
 function toggleSeverity(level, chip) {
@@ -530,7 +512,7 @@ function toggleSeverity(level, chip) {
   if (isReportViewVisible) {
     // We're viewing a report, filter issues within the report
     applyFilters();
-  } else if (state.allReports && state.allReports.length > 0) {
+  } else {
     // We're in history view, filter the reports list
     filterHistory();
   }
@@ -584,40 +566,6 @@ function renderSummary() {
   document.getElementById("total-rules").textContent = rules || "—";
   // Always show count of reports (1 when viewing a single report)
   document.getElementById("report-type").textContent = "1";
-}
-
-function calculateTotalsFromReports(reports) {
-  let totalFindings = 0;
-  let totalFiles = 0;
-  let totalRules = 0;
-  const severityCounts = {
-    critical: 0,
-    high: 0,
-    medium: 0,
-    low: 0,
-    info: 0,
-  };
-  
-  reports.forEach((report) => {
-    totalFindings += report.total_findings || 0;
-    totalFiles += report.total_files || 0;
-    totalRules += report.total_rules || 0;
-    
-    const severity = report.severity || {};
-    severityCounts.critical += severity.critical || 0;
-    severityCounts.high += severity.high || 0;
-    severityCounts.medium += severity.medium || 0;
-    severityCounts.low += severity.low || 0;
-    severityCounts.info += severity.info || 0;
-  });
-  
-  return {
-    total_reports: reports.length,
-    total_findings: totalFindings,
-    total_files: totalFiles,
-    total_rules: totalRules,
-    severity: severityCounts,
-  };
 }
 
 function renderHistoryTotals(totals) {
@@ -780,12 +728,17 @@ function setupFileInput() {
 function setupSearch() {
   searchInput.addEventListener("input", () => {
     // Check if we're in history view or report view
-    if (state.allReports && state.allReports.length > 0 && !state.issues.length) {
-      // We're in history view, filter the reports list
-      filterHistory();
-    } else {
+    const reportViewPanel = document.getElementById("report-view");
+    const isReportViewVisible = reportViewPanel && 
+      reportViewPanel.style.display !== "none" && 
+      reportViewPanel.style.display !== "";
+    
+    if (isReportViewVisible) {
       // We're viewing a report, filter issues within the report
       applyFilters();
+    } else {
+      // We're in history view, filter the reports list
+      filterHistory();
     }
   });
 }

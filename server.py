@@ -4,7 +4,7 @@ import sqlite3
 import time
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 import cgi
 from datetime import datetime
 
@@ -226,11 +226,14 @@ class ReportDB:
         finally:
             conn.close()
 
-    def get_all_reports(self):
-        """Get all reports ordered by creation date"""
+    def get_all_reports(self, filters=None):
+        """Get all reports ordered by creation date, with optional filters"""
+        if filters is None:
+            filters = {}
+        
         conn = self.get_connection()
         try:
-            cursor = conn.execute("""
+            query = """
                 SELECT id, filename, stored_filename, file_path,
                        report_type, total_findings, total_files, total_rules,
                        severity_critical, severity_high, severity_medium,
@@ -240,17 +243,95 @@ class ReportDB:
                        gitlab_project, gitlab_project_url,
                        created_at
                 FROM reports
-                ORDER BY created_at DESC
-            """)
+                WHERE 1=1
+            """
+            params = []
+            
+            # Filter by report type
+            if filters.get("report_type"):
+                report_types = filters["report_type"]
+                if isinstance(report_types, str):
+                    report_types = [report_types]
+                if report_types:
+                    placeholders = ",".join(["?"] * len(report_types))
+                    query += f" AND ("
+                    conditions = []
+                    for rt in report_types:
+                        if rt == "JSON":
+                            conditions.append("report_type LIKE ?")
+                            params.append("%JSON%")
+                        elif rt == "SARIF":
+                            conditions.append("report_type LIKE ?")
+                            params.append("%SARIF%")
+                    if conditions:
+                        query += " OR ".join(conditions) + ")"
+            
+            # Filter by severity - show report if it has at least one issue of selected severity
+            if filters.get("severity"):
+                severities = filters["severity"]
+                if isinstance(severities, str):
+                    severities = [severities]
+                elif not isinstance(severities, list):
+                    severities = []
+                if severities:
+                    query += " AND ("
+                    conditions = []
+                    for sev in severities:
+                        if sev in ["critical", "high", "medium", "low", "info"]:
+                            conditions.append(f"severity_{sev} > 0")
+                    if conditions:
+                        query += " OR ".join(conditions) + ")"
+                    else:
+                        # If no valid severities, return no results
+                        query += " AND 1=0"
+            
+            # Filter by date range
+            if filters.get("date_from"):
+                try:
+                    date_from = datetime.strptime(filters["date_from"], "%Y-%m-%d")
+                    query += " AND DATE(created_at) >= ?"
+                    params.append(date_from.strftime("%Y-%m-%d"))
+                except ValueError:
+                    pass
+            
+            if filters.get("date_to"):
+                try:
+                    date_to = datetime.strptime(filters["date_to"], "%Y-%m-%d")
+                    query += " AND DATE(created_at) <= ?"
+                    params.append(date_to.strftime("%Y-%m-%d"))
+                except ValueError:
+                    pass
+            
+            # Filter by search query (filename, git metadata)
+            if filters.get("search"):
+                search_term = f"%{filters['search']}%"
+                query += """ AND (
+                    filename LIKE ? OR
+                    git_tag LIKE ? OR
+                    git_branch LIKE ? OR
+                    git_commit LIKE ?
+                )"""
+                params.extend([search_term] * 4)
+            
+            query += " ORDER BY created_at DESC"
+            
+            # Debug: print query for troubleshooting
+            # print(f"Query: {query}")
+            # print(f"Params: {params}")
+            
+            cursor = conn.execute(query, params)
             return [dict(row) for row in cursor.fetchall()]
         finally:
             conn.close()
 
-    def get_totals(self):
-        """Get aggregate totals across all reports"""
+    def get_totals(self, filters=None):
+        """Get aggregate totals across filtered reports"""
+        if filters is None:
+            filters = {}
+        
         conn = self.get_connection()
         try:
-            cursor = conn.execute("""
+            query = """
                 SELECT 
                     COUNT(*) as total_reports,
                     SUM(total_findings) as total_findings,
@@ -262,7 +343,69 @@ class ReportDB:
                     SUM(severity_low) as total_low,
                     SUM(severity_info) as total_info
                 FROM reports
-            """)
+                WHERE 1=1
+            """
+            params = []
+            
+            # Apply same filters as get_all_reports
+            if filters.get("report_type"):
+                report_types = filters["report_type"]
+                if isinstance(report_types, str):
+                    report_types = [report_types]
+                if report_types:
+                    placeholders = ",".join(["?"] * len(report_types))
+                    query += f" AND ("
+                    conditions = []
+                    for rt in report_types:
+                        if rt == "JSON":
+                            conditions.append("report_type LIKE ?")
+                            params.append("%JSON%")
+                        elif rt == "SARIF":
+                            conditions.append("report_type LIKE ?")
+                            params.append("%SARIF%")
+                    if conditions:
+                        query += " OR ".join(conditions) + ")"
+            
+            if filters.get("severity"):
+                severities = filters["severity"]
+                if isinstance(severities, str):
+                    severities = [severities]
+                if severities:
+                    query += " AND ("
+                    conditions = []
+                    for sev in severities:
+                        if sev in ["critical", "high", "medium", "low", "info"]:
+                            conditions.append(f"severity_{sev} > 0")
+                    if conditions:
+                        query += " OR ".join(conditions) + ")"
+            
+            if filters.get("date_from"):
+                try:
+                    date_from = datetime.strptime(filters["date_from"], "%Y-%m-%d")
+                    query += " AND DATE(created_at) >= ?"
+                    params.append(date_from.strftime("%Y-%m-%d"))
+                except ValueError:
+                    pass
+            
+            if filters.get("date_to"):
+                try:
+                    date_to = datetime.strptime(filters["date_to"], "%Y-%m-%d")
+                    query += " AND DATE(created_at) <= ?"
+                    params.append(date_to.strftime("%Y-%m-%d"))
+                except ValueError:
+                    pass
+            
+            if filters.get("search"):
+                search_term = f"%{filters['search']}%"
+                query += """ AND (
+                    filename LIKE ? OR
+                    git_tag LIKE ? OR
+                    git_branch LIKE ? OR
+                    git_commit LIKE ?
+                )"""
+                params.extend([search_term] * 4)
+            
+            cursor = conn.execute(query, params)
             row = cursor.fetchone()
             if row:
                 return dict(row)
@@ -396,8 +539,24 @@ class ReaderHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == "/reports":
-            reports = db.get_all_reports()
-            totals = db.get_totals()
+            # Parse query parameters
+            query_params = parse_qs(parsed.query)
+            filters = {}
+            
+            # Extract filter parameters
+            if "severity" in query_params:
+                filters["severity"] = query_params["severity"]
+            if "report_type" in query_params:
+                filters["report_type"] = query_params["report_type"]
+            if "date_from" in query_params:
+                filters["date_from"] = query_params["date_from"][0] if query_params["date_from"] else None
+            if "date_to" in query_params:
+                filters["date_to"] = query_params["date_to"][0] if query_params["date_to"] else None
+            if "search" in query_params:
+                filters["search"] = query_params["search"][0] if query_params["search"] else None
+            
+            reports = db.get_all_reports(filters)
+            totals = db.get_totals(filters)
             files = []
             for report in reports:
                 # Parse created_at timestamp (SQLite stores as string)
